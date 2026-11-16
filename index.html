@@ -1,0 +1,641 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Thinfinity HA Validation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: navy brand band on top, sticky progress strip, then one column of
+   requirement areas; each area is a single surface with one row per validation item. */
+:root{
+  --bg:#f4f7fb; --surface:#ffffff; --sunken:#eef3f8;
+  --fg:#1f2b38; --muted:#5a6878; --line:#dbe4ed;
+  --accent:#0a74d6; --accent-fg:#ffffff; --accent-soft:#e6f1fc;
+  --pass:#2c8a1c; --pass-bg:#e8f6e4; --pass-solid:#4fae38;
+  --fail:#cf3813; --fail-bg:#fdebe5; --fail-solid:#f34620;
+  --na:#5a6878; --na-bg:#e8edf2; --na-solid:#93a1b0;
+  --pend:#a86400; --pend-bg:#fff3dc; --pend-solid:#ffa91f;
+  --hdr-a:#032748; --hdr-b:#075eae; --hdr-fg:#ffffff; --hdr-muted:#bcd4ec;
+  --hdr-field:rgba(255,255,255,.1); --hdr-field-line:rgba(255,255,255,.28);
+  --leaf-blue:#0a74d6; --leaf-orange:#ffa91f; --leaf-green:#66c44f; --leaf-red:#f34620;
+  --shadow:0 4px 20px 0 rgba(0,0,0,.07);
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  --r-s:10px; --r-l:15px; --r-full:500px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a1521; --surface:#101f2f; --sunken:#0c1826;
+    --fg:#e6edf5; --muted:#9cb0c5; --line:#22364b;
+    --accent:#4da6f5; --accent-fg:#04213d; --accent-soft:#12304d;
+    --pass:#86d972; --pass-bg:#15301a; --pass-solid:#66c44f;
+    --fail:#ff8669; --fail-bg:#3a1a12; --fail-solid:#f34620;
+    --na:#9cb0c5; --na-bg:#1b2c3e; --na-solid:#5d7186;
+    --pend:#ffc163; --pend-bg:#33250a; --pend-solid:#ffa91f;
+    --shadow:0 4px 20px 0 rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a1521; --surface:#101f2f; --sunken:#0c1826;
+  --fg:#e6edf5; --muted:#9cb0c5; --line:#22364b;
+  --accent:#4da6f5; --accent-fg:#04213d; --accent-soft:#12304d;
+  --pass:#86d972; --pass-bg:#15301a; --pass-solid:#66c44f;
+  --fail:#ff8669; --fail-bg:#3a1a12; --fail-solid:#f34620;
+  --na:#9cb0c5; --na-bg:#1b2c3e; --na-solid:#5d7186;
+  --pend:#ffc163; --pend-bg:#33250a; --pend-solid:#ffa91f;
+  --shadow:0 4px 20px 0 rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--hdr-a)}
+.wrap{max-width:1060px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.92em}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* brand band */
+.band{background:linear-gradient(var(--hdr-a) 0%,var(--hdr-b) 100%);color:var(--hdr-fg)}
+.band .wrap{padding-block:26px 30px;display:flex;flex-direction:column;gap:22px}
+.band-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.logo{width:132px;height:auto;display:block}
+.docver{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--hdr-muted)}
+.eyebrow{font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--hdr-muted);margin-bottom:8px}
+.band h1{font-size:clamp(1.6rem,1.1rem + 2vw,2.35rem);line-height:1.15;max-width:22em}
+.band .lede{color:var(--hdr-muted);max-width:62ch;margin-top:10px}
+.session{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.session label{display:flex;flex-direction:column;gap:5px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--hdr-muted);min-width:0}
+.session input{background:var(--hdr-field);border:1px solid var(--hdr-field-line);border-radius:var(--r-s);padding:9px 12px;color:var(--hdr-fg);font-size:15px;letter-spacing:0;text-transform:none;min-width:0;width:100%;color-scheme:dark}
+.session input::placeholder{color:var(--hdr-muted);opacity:.75}
+.session input:focus-visible{outline-color:var(--hdr-fg)}
+.leaves{display:grid;grid-template-columns:repeat(4,1fr);height:4px}
+.leaves i:nth-child(1){background:var(--leaf-blue)}
+.leaves i:nth-child(2){background:var(--leaf-orange)}
+.leaves i:nth-child(3){background:var(--leaf-green)}
+.leaves i:nth-child(4){background:var(--leaf-red)}
+
+/* sticky progress strip */
+.strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+.strip .wrap{padding-block:10px;display:flex;flex-direction:column;gap:8px}
+.strip-row{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
+.tally{font-variant-numeric:tabular-nums;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline;min-width:0;flex:1 1 300px}
+.tally b{font-weight:600;font-size:16px}
+.tally span{color:var(--muted);font-size:13.5px;white-space:nowrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.dot.pass{background:var(--pass-solid)}.dot.fail{background:var(--fail-solid)}.dot.na{background:var(--na-solid)}.dot.pend{background:var(--pend-solid)}
+.bar{display:flex;height:8px;border-radius:var(--r-full);overflow:hidden;background:var(--sunken)}
+.bar i{display:block;height:100%;transition:width .25s ease}
+.bar .pass{background:var(--pass-solid)}.bar .fail{background:var(--fail-solid)}.bar .na{background:var(--na-solid)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-full);padding:7px 16px;font-weight:500;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--fail-solid);color:var(--fail)}
+.btn:disabled{opacity:.5;cursor:default}
+.filters{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-full);overflow:hidden}
+.filters button{border:0;background:transparent;padding:7px 13px;font-size:13.5px;cursor:pointer;color:var(--muted)}
+.filters button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.sync{font-size:12.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--na-solid)}
+.sync[data-s="ok"]::before{background:var(--pass-solid)}
+.sync[data-s="busy"]::before{background:var(--pend-solid)}
+.sync[data-s="warn"]::before{background:var(--fail-solid)}
+
+main.wrap{padding-block:26px 56px;display:flex;flex-direction:column;gap:26px}
+
+/* commitment note */
+.commit{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.commit h2{font-size:15px}
+.commit p{color:var(--muted);max-width:78ch}
+.ack{display:flex;gap:10px;align-items:flex-start;font-weight:500;cursor:pointer}
+.ack input{margin-top:3px}
+input[type="checkbox"]{width:17px;height:17px;accent-color:var(--accent);flex:none}
+
+/* area overview */
+.areas{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.area-link{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);padding:13px 15px;min-width:0}
+.area-link:hover{border-color:var(--accent)}
+.area-link .n{font-size:12px;color:var(--muted);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.area-link .t{font-weight:600;line-height:1.3}
+.area-link .c{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:auto}
+.area-link .bar{height:5px}
+
+/* areas */
+.area{scroll-margin-top:130px;display:flex;flex-direction:column;gap:12px}
+.area-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}
+.area-head h2{font-size:1.2rem}
+.area-head .num{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:8px}
+.area-head .cnt{color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
+.items{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden}
+.item{padding:16px 20px;border-top:1px solid var(--line);scroll-margin-top:130px;display:flex;flex-direction:column;gap:10px}
+.item:first-child{border-top:0}
+.item.flash{animation:flash 1.4s ease}
+@keyframes flash{0%,40%{background:var(--accent-soft)}100%{background:transparent}}
+.item-top{display:flex;gap:12px 20px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.item-txt{flex:1 1 380px;min-width:0}
+.item h3{font-size:15.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:var(--r-full);padding:2px 9px;background:var(--pend-bg);color:var(--pend)}
+.item[data-s="pass"] .pill{background:var(--pass-bg);color:var(--pass)}
+.item[data-s="fail"] .pill{background:var(--fail-bg);color:var(--fail)}
+.item[data-s="na"] .pill{background:var(--na-bg);color:var(--na)}
+.crit{color:var(--muted);margin-top:3px;max-width:70ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-full);overflow:hidden;flex:none}
+.seg button{border:0;border-left:1px solid var(--line);background:transparent;padding:8px 16px;font-weight:500;font-size:14px;cursor:pointer;min-width:62px}
+.seg button:first-child{border-left:0}
+.seg button:hover{background:var(--sunken)}
+.seg button[aria-pressed="true"][data-v="pass"]{background:var(--pass-solid);color:#fff}
+.seg button[aria-pressed="true"][data-v="fail"]{background:var(--fail-solid);color:#fff}
+.seg button[aria-pressed="true"][data-v="na"]{background:var(--na-solid);color:#fff}
+.seg button:disabled{cursor:default}
+details.more>summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:14px;list-style:none;display:inline-flex;align-items:center;gap:8px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details.more[open]>summary::before{transform:rotate(45deg)}
+details.more>summary .k{color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+details.more>summary .hasnote{color:var(--muted);font-weight:400}
+.more-body{display:flex;flex-direction:column;gap:14px;padding-top:12px}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.checks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;max-width:80ch}
+.checks input{margin-top:2px}
+.checks input:checked+span{color:var(--muted)}
+.note{display:flex;flex-direction:column;gap:5px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.note textarea{letter-spacing:0;text-transform:none;font-size:14.5px;color:var(--fg);background:var(--sunken);border:1px solid var(--line);border-radius:var(--r-s);padding:9px 12px;min-height:62px;resize:vertical;width:100%}
+details.ref{background:var(--sunken);border-radius:var(--r-s);padding:10px 14px}
+details.ref>summary{cursor:pointer;font-size:13.5px;font-weight:500;color:var(--muted)}
+.scroll{overflow-x:auto;margin-top:10px}
+table{border-collapse:collapse;font-size:13.5px;min-width:520px;width:100%}
+th,td{text-align:left;padding:7px 12px 7px 0;border-top:1px solid var(--line);vertical-align:top}
+th{border-top:0;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips code{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:2px 7px;overflow-wrap:anywhere}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+
+/* sign-off */
+.signoff{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:20px;display:flex;flex-direction:column;gap:16px;scroll-margin-top:130px}
+.verdict{display:inline-flex;align-self:flex-start;border-radius:var(--r-full);padding:5px 14px;font-weight:600;font-size:14px;background:var(--pend-bg);color:var(--pend)}
+.verdict[data-v="ready"]{background:var(--pass-bg);color:var(--pass)}
+.verdict[data-v="open"]{background:var(--fail-bg);color:var(--fail)}
+.sign-rows{display:flex;flex-direction:column;gap:12px}
+.sign-row{display:grid;grid-template-columns:minmax(150px,1fr) 2fr minmax(150px,1fr);gap:10px;align-items:center}
+.sign-row .role{font-weight:500}
+.sign-row input{background:var(--sunken);border:1px solid var(--line);border-radius:var(--r-s);padding:9px 12px;min-width:0;width:100%}
+@media (max-width:620px){.sign-row{grid-template-columns:1fr}}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.copyout{width:100%;min-height:180px;font-family:var(--mono);font-size:13px;background:var(--sunken);border:1px solid var(--line);border-radius:var(--r-s);padding:10px;color:var(--fg)}
+.foot{color:var(--muted);font-size:13px;display:flex;gap:8px 20px;flex-wrap:wrap;justify-content:space-between}
+.foot a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div class="band-top">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="205" height="78" fill="none" viewBox="0 0 205 78" role="img" aria-label="Cybele Software">
+        <path fill="#fff" d="M75.969 70.696c-2.672-.368-2.921-.72-2.921-1.543 0-1.044.91-1.573 2.715-1.573 1.527 0 3.832.294 3.846.294l.397.044.073-1.352-.337-.044c-.089 0-2.203-.294-3.979-.294-2.73 0-4.3 1.073-4.3 2.954 0 2.175 1.658 2.542 4.183 2.851 2.906.382 3.215.676 3.215 1.631 0 1.381-.866 1.896-3.171 1.896-1.145 0-3.567-.324-3.582-.324l-.352-.044-.22 1.352.381.044c.103 0 2.525.294 3.802.294 2.026 0 4.727-.338 4.727-3.32 0-2.146-1.703-2.499-4.477-2.896zM88.946 66.273c-3.641 0-5.05 1.44-5.05 5.157s.778 5.584 5.05 5.584c4.271 0 4.99-2.027 4.99-5.525-.029-3.6-1.57-5.217-4.99-5.217m0 1.322c2.451 0 3.405 1.073 3.405 3.82-.03 3.042-.337 4.189-3.405 4.189s-3.494-.956-3.494-4.218c0-3.012.72-3.791 3.494-3.791M103.669 61.908s-1.321-.058-2.114-.058c-2.422 0-3.244.955-3.244 3.776v.808h-1.57v1.352h1.57v9.008h1.527v-9.008h3.699v-1.352h-3.7v-.778c0-2.234.5-2.455 1.733-2.455.646 0 2.084.03 2.084.03h.382v-1.308h-.352zM113.313 75.487h-.337s-.074 0-.191.014c-.426.044-1.585.147-2.099.147-1.468 0-1.732-.235-1.732-3.174v-4.687h4.154v-1.352h-4.154V63.29h-1.527v3.145h-1.806v1.352h1.806v5.407c0 2.851.822 3.806 3.288 3.806.793 0 2.305-.161 2.364-.161l.367-.044-.133-1.323zM130.503 66.435l-2.804 8.655-3.229-8.464h-1.38l-3.273 8.464-2.804-8.655h-1.615l3.318 10.374h2.099l2.906-7.92 2.922 7.92h2.099l3.391-10.374zM145.197 75.648c-.924-.118-1.233-.309-1.335-.426 0 0-.088-.044-.059-.353 0-.632.015-5.246.015-5.246 0-2.248-1.248-3.38-3.714-3.38-1.835 0-4.331.353-4.434.368l-.352.044.147 1.352.367-.044s2.657-.324 4.272-.324c1.526 0 2.187.603 2.187 1.999v.676l-4.022.367c-2.364.206-3.509 1.234-3.509 3.16 0 1.924 1.233 3.188 3.289 3.188 1.57 0 3.112-.264 4.609-.735.528.485 1.35.735 2.466.735h.352l.074-1.308-.338-.044zm-2.935-3.982v3.306c-.676.19-2.467.646-4.184.646-1.116 0-1.732-.646-1.732-1.822 0-.705.22-1.66 2.055-1.793l3.861-.323zM154.68 66.243c-1.79.28-3.317 1-4.095 1.426v-1.235h-1.527V76.81h1.527v-7.656c.587-.309 2.437-1.234 4.213-1.528l.308-.044v-1.396zM166.644 71.254c0-3.35-1.541-4.996-4.726-4.996s-4.991 1.807-4.991 5.349c0 2.645.557 5.349 4.653 5.349 1.659 0 4.228-.162 4.242-.162l.367-.03-.073-1.351-.367.03s-2.554.16-4.14.16c-2.128 0-3.024-.954-3.097-3.364h8.118v-.985zm-4.726-3.659c2.143 0 3.053.926 3.126 3.292h-6.517c.102-2.249 1.189-3.292 3.391-3.292"/>
+        <path fill="#fff" fill-rule="evenodd" clip-rule="evenodd" d="M80.68 36.002c-.234-.103-.425-.236-.66-.324 5.828-2.366 5.373-14.165.72-17.34-1.733-1.175-4.683-1.645-8.06-1.94-8.147-.029-16.998-.131-22.826.03-2.877 5.143-8.91 16.62-8.91 16.62s-.852-.367-8.75-16.62C22.14 16.134 9.074 13.71 4.26 20.263 1.822 23.643.912 29.991 1 36.457c.132 8.068.162 15.15 5.593 18.56 5.402 3.174 14.107 1.572 20.464 1.116.102-1.94-.06-3.776.058-5.701-13.197 2.953-20.243 1.014-20.11-8.846.131-9.86.16-14.783 2.495-17.796 2.98-3.835 13.887-1.895 18.922-1.94 4.154 7.612 7.501 13.27 9.82 18.06.162.162-.058 9.14-.19 16.59h5.769V39.485c3.214-5.863 9.659-18 9.659-18l18.467-.03s2.686.132 4.36 1.087c1.511.852 1.996 2.528 1.996 2.528.117.852.161 1.719.132 2.586-.059.926-.19 1.851-.396 2.748 0 0-.955 1.734-1.835 2.322-.881.617-2.393.984-4.228.91-3.112.06-4.096.06-8.573.03V23.408h-5.769V56.78c12.874.367 27.7 2.101 27.906-10.595 0-6.201-1.541-7.568-4.874-10.198zM78.876 48.55c-.983 2.101-3.772 2.498-6.87 2.69-2.745.19-5.9-.03-8.617-.163V38.882c5.402 0 6.518.03 8.676 0 1.41-.03 2.921-.03 4.419.588 1.306.558 2.495 1.601 2.818 2.454.294.91.587 5.437-.426 6.627m9.836 7.994h24.691v-5.437H94.48V39.234H110.2v-5.437H94.48V21.924h18.922v-5.437H88.711zm33.66-40.117h-5.769V56.56h22.137v-5.437H122.4c-.029-11.565-.044-23.13-.029-34.68zm43.906 0h-24.691V56.56h24.691v-5.437h-18.922V39.249h15.722v-5.437h-15.722V21.94c6.327-.06 12.61-.06 18.922-.06z"/>
+        <path fill="#0a74d6" fill-rule="evenodd" clip-rule="evenodd" d="M184.796 12.277a1 1 0 0 0-.058-.123l-.034-.06a22 22 0 0 0-6.959-8.116 22.176 22.176 0 0 0-6.044-3.041c-1.644-.53-3.185 1.053-2.611 2.684a21 21 0 0 1 1.032 9.495.727.727 0 0 0 .27.575q.01.01.02.016a.2.2 0 0 1 .031.03.24.24 0 0 1-.036.313.5.5 0 0 0-.101.118.73.73 0 0 0 .463 1.114.74.74 0 0 0 .491-.074 20.9 20.9 0 0 1 12.257-1.527q.031.005.064.013.064.015.128.02a1.052 1.052 0 0 0 1.087-1.437"/>
+        <path fill="#ffa91f" fill-rule="evenodd" clip-rule="evenodd" d="M188.847 14.944a1 1 0 0 1 .136.005l.069.006a22 22 0 0 1 10.198 3.185q.342.208.676.429a22.2 22.2 0 0 1 4.506 3.926c1.138 1.301.296 3.345-1.427 3.465a20.8 20.8 0 0 0-6.316 1.444 21 21 0 0 0-2.665 1.292.71.71 0 0 1-.314.13.7.7 0 0 1-.416-.057q-.02-.01-.037-.019-.012-.005-.023-.012a.1.1 0 0 0-.038-.015.24.24 0 0 0-.273.156.494.494 0 0 1-.067.139.73.73 0 0 1-1.206.015.73.73 0 0 1-.126-.48 21 21 0 0 0-3.455-11.874q-.019-.028-.038-.054a1.056 1.056 0 0 1-.033-1.207c.195-.299.517-.465.849-.474"/>
+        <path fill="#66c44f" fill-rule="evenodd" clip-rule="evenodd" d="M184.225 15.099a1 1 0 0 0-.293-.134l-.061-.018a14.53 14.53 0 0 0-13.119 1.936l-.047.031a.71.71 0 0 0-.337.488.74.74 0 0 0 .091.511.6.6 0 0 1 .074.169.74.74 0 0 1-.027.435.4.4 0 0 1-.045.08q-.005.009-.012.017a.731.731 0 0 0 .087.907q.075.075.121.17c.084.18.093.391.015.582a.5.5 0 0 1-.072.121l-.031.044-.027.045a.73.73 0 0 0 .173.92.6.6 0 0 1 .102.105.74.74 0 0 1 .089.651.5.5 0 0 1-.064.12l-.015.02a.75.75 0 0 0-.12.397.73.73 0 0 0 .254.554c.118.102.2.24.23.393v.002a.6.6 0 0 1-.004.246.731.731 0 0 0 .311.767.772.772 0 0 0 .273.11.6.6 0 0 1 .237.097q.013.01.026.02a.73.73 0 0 1 .237.838.733.733 0 0 0 .046.848q.068.088.168.153a.72.72 0 0 0 .814-.01l.045-.03a.73.73 0 0 1 1.074.623q0 .03-.003.059l-.003.058a.92.92 0 0 0 1.651.58l.036-.051.035-.059.034-.058a88.389 88.389 0 0 1 8.199-11.078q.026-.028.048-.053a1.4 1.4 0 0 0 .113-.144 1.057 1.057 0 0 0-.303-1.46z"/>
+        <path fill="#f34620" fill-rule="evenodd" clip-rule="evenodd" d="M186.487 16.588a1.1 1.1 0 0 1 .279.263 14.58 14.58 0 0 1 3.423 12.831.4.4 0 0 0-.009.057.73.73 0 0 1-.818.622.7.7 0 0 0-.183-.001.7.7 0 0 0-.387.198.3.3 0 0 0-.057.073l-.011.017a.725.725 0 0 1-.865.28.6.6 0 0 0-.204-.045.73.73 0 0 0-.54.217.5.5 0 0 0-.083.115l-.028.046-.03.044a.73.73 0 0 1-.911.204.5.5 0 0 0-.138-.05.74.74 0 0 0-.633.173.5.5 0 0 0-.085.106l-.014.023a.73.73 0 0 1-.698.322.7.7 0 0 1-.226-.068.7.7 0 0 0-.452-.055h-.002a.6.6 0 0 0-.223.101.723.723 0 0 1-.827.02.7.7 0 0 1-.132-.113 1 1 0 0 1-.074-.094.6.6 0 0 0-.183-.178q-.014-.01-.029-.017a.73.73 0 0 0-.861.115.728.728 0 0 1-1.324-.498q.004-.028.009-.053l.009-.052a.73.73 0 0 0-.996-.74c-.019.006-.034.016-.053.025l-.052.025a.92.92 0 0 1-1.112-1.397l.041-.054q.542-.788 1.072-1.595a88 88 0 0 0 5.836-10.335q.016-.031.028-.066l.048-.098.037-.062c.318-.49.97-.625 1.458-.306"/>
+      </svg>
+      <span class="docver">Thinfinity&reg; Workspace &middot; Version 8.5</span>
+    </div>
+    <div>
+      <p class="eyebrow">Production environment requirements and validation</p>
+      <h1>High Availability deployment: validation checklist</h1>
+      <p class="lede">The 32 acceptance criteria from section 12 of the validation document, with the detailed requirements behind each one. Mark every item Pass, Fail or N/A as it is reviewed.</p>
+    </div>
+    <div class="session">
+      <label for="m-client">Client<input id="m-client" data-meta="client" type="text" placeholder="Client name" autocomplete="off"></label>
+      <label for="m-env">Environment<input id="m-env" data-meta="env" type="text" placeholder="e.g. Production, OCI" autocomplete="off"></label>
+      <label for="m-date">Review date<input id="m-date" data-meta="date" type="date"></label>
+    </div>
+  </div>
+  <div class="leaves" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+</header>
+
+<div class="strip">
+  <div class="wrap">
+    <div class="strip-row">
+      <div class="tally" id="tally" aria-live="polite"></div>
+      <span class="sync" id="sync" data-s="idle">Starting</span>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="Overall progress"><i class="pass"></i><i class="fail"></i><i class="na"></i></div>
+    <div class="strip-row">
+      <button class="btn primary" id="next" type="button">Next pending item</button>
+      <div class="filters" role="group" aria-label="Filter items">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="pend" aria-pressed="false">Pending</button>
+        <button type="button" data-f="fail" aria-pressed="false">Failed</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="commit" aria-labelledby="commit-h">
+    <h2 id="commit-h">Scope of responsibility (section 1.1)</h2>
+    <p>Cybele Software does not validate the delivered infrastructure. The Client confirms that the environment meets every requirement below. Any deviation can affect stability, performance, security or availability, and falls outside Cybele Software's responsibility.</p>
+    <label class="ack" for="m-ack"><input id="m-ack" data-meta="ack" type="checkbox"><span>The Client acknowledges this commitment</span></label>
+  </section>
+
+  <nav class="areas" id="areas" aria-label="Requirement areas"></nav>
+  <div id="list"></div>
+  <p class="empty" id="empty" hidden>No items match this filter.</p>
+
+  <section class="signoff" id="signoff" aria-labelledby="so-h">
+    <h2 id="so-h"><span style="color:var(--accent);margin-right:8px">12.6</span>Validation sign-off</h2>
+    <span class="verdict" id="verdict">In progress</span>
+    <div class="sign-rows">
+      <div class="sign-row"><span class="role">Prepared by (Cybele)</span><input id="so-p-n" data-so="p.n" type="text" placeholder="Name" aria-label="Prepared by, name"><input id="so-p-d" data-so="p.d" type="date" aria-label="Prepared by, date"></div>
+      <div class="sign-row"><span class="role">Reviewed by</span><input id="so-r-n" data-so="r.n" type="text" placeholder="Name" aria-label="Reviewed by, name"><input id="so-r-d" data-so="r.d" type="date" aria-label="Reviewed by, date"></div>
+      <div class="sign-row"><span class="role">Approved by (Client)</span><input id="so-a-n" data-so="a.n" type="text" placeholder="Name" aria-label="Approved by, name"><input id="so-a-d" data-so="a.d" type="date" aria-label="Approved by, date"></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="copy" type="button">Copy results summary</button>
+      <span id="copied" class="sync" data-s="ok" hidden>Copied</span>
+    </div>
+    <textarea class="copyout" id="copyout" readonly hidden aria-label="Results summary"></textarea>
+  </section>
+
+  <div class="foot">
+    <span>Source: Production Environment Requirements and Validation Document, Thinfinity Workspace HA, v8.5. Reference: <a href="https://www.cybelesoft.com/manuals/workspace-8.5/bp/prod/README" target="_blank" rel="noopener">Best Practices for Production Environments</a></span>
+    <span class="actions"><button class="btn" id="reset" type="button">Clear all results</button><button class="btn danger" id="reset-yes" type="button" hidden>Yes, clear everything</button><button class="btn" id="reset-no" type="button" hidden>Cancel</button></span>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var REFS={
+  urls:{title:"Address patterns that must be allowed (firewall and WAF)",cols:["Category","Address / pattern","Function"],rows:[
+    ["Main domain","https://<domain>","Primary HTTPS 443 entry point"],
+    ["Logs & monitoring","/__elogs__/  /__cloud__/  /__web__/  /__base__/  /__notifications__/  /__themes__/*","Telemetry, internal resources, portal components, UI base, notifications, themes"],
+    ["Brokers & VDI","/VDI:*  /BRK:*  /WEB:*","VDI sessions, broker-to-broker communication, web application sessions"],
+    ["Health checks","/VDI:<gateway>/__health__/  /BRK:<broker>/__health__/","Availability check per gateway and per broker node"],
+    ["Authentication","/?signin","Initial authentication flow"],
+    ["APIs","/RDPSession/getList?...","RDP session listings"],
+    ["Static files","/flsenv.min.js  /common/*  /css/*  /font/*  /rdp/*  /workspace/*","Main script, shared libraries, styles, fonts, RDP resources, workspace UI"],
+    ["Static files","/[32-char alphanumeric]/*  /machinename@ipaddress/*","Session identifiers and RDP session associations"]]},
+  methods:{title:"HTTP methods and their purpose",cols:["Method","Purpose"],rows:[
+    ["GET","Static resources: UI components, scripts, images"],["POST","Login, API operations, session initiation"],["PUT","Update operations within Thinfinity services"],["DELETE","Removal of session-related or temporary resources"],["OPTIONS","CORS preflight requests"],["PROPFIND","WebDAV integration and file operations"]]},
+  segments:{title:"Segmented firewall rule sets",cols:["Segment","Rule","Ports / protocols"],rows:[
+    ["Edge → Thinfinity subnet","LB/WAF → Gateways (+ health checks)","TCP 443 (TLS re-encryption)"],
+    ["Control & access plane","Gateways ↔ Brokers (control APIs)","HTTPS TCP 443"],
+    ["Control & access plane","Brokers → Identity (AD/DNS/NTP)","LDAPS 636 / LDAP 389, Kerberos 88/464, GC 3268/3269, DNS 53, NTP 123"],
+    ["Control & access plane","Brokers → Database (chosen engine only)","MySQL 3306 or SQL Server 1433"],
+    ["Thinfinity → Workloads","Gateways → VDI/Apps (per host pool)","RDP 3389 (Windows), SSH 22 (Linux), HTTPS/HTTP (web apps)"],
+    ["Thinfinity → Workloads","Session hosts → Profile/File shares","SMB 445 (from session hosts only)"],
+    ["Egress (as needed)","CRL/OCSP, package repos (scoped), NTP","80/443, NTP 123"]]},
+  subnet:{title:"Thinfinity subnet network rules (no public IP)",cols:["Resource","Inbound","Comment"],rows:[
+    ["Thinfinity Gateway 1..N","9443 + 443 (bindings)","Domain-joined; receives traffic from the load balancer"],
+    ["Thinfinity Broker 1..2","7443 (License Service), 389/636 (LDAP/LDAPS)","Authenticates against Active Directory; talks to the database"],
+    ["OCI MySQL Database","3306","Sessions and configuration"],
+    ["Monitoring Service","4317–4318","Collects metrics from gateways and brokers"],
+    ["Monitoring Storage","–","Dedicated disk for monitoring and telemetry data"]]},
+  exes:{title:"Binaries to exclude (C:\\Program Files\\Thinfinity)",chips:["Thinfinity.ACME.exe","Thinfinity.AppDesktop.exe","Thinfinity.BookingManager.exe","Thinfinity.Broker.exe","Thinfinity.CloudManager.exe","Thinfinity.ConfigMgr.exe","Thinfinity.DatabaseDS.exe","Thinfinity.EnterpriseLogger.exe","Thinfinity.Gateway.exe","Thinfinity.LauncherExp.exe","Thinfinity.Monitor.exe","Thinfinity.Notifications.exe","Thinfinity.RAppProxy.exe","Thinfinity.RemoteAD.exe","Thinfinity.RemoteDesktop.exe","Thinfinity.RScript.exe","Thinfinity.SvcMgr.exe","Thinfinity.Tunnel.exe","Thinfinity.Virtualizer.exe","Thinfinity.VirtualUI.Server.exe","Thinfinity.VSphere.Cli.exe","Thinfinity.VuiExLib.Desktop.exe","Thinfinity.WAG.exe","Thinfinity.WebDav.Proxy.exe","Thinfinity.WebDav.Server.exe","Thinfinity.WebService.exe","Thinfinity.WTSLauncher.exe","victoria-metrics-windows-amd64-prod.exe","otelcol-contrib.exe","terraform.exe"]},
+  folders:{title:"Folders to exclude in full (files and subfolders)",cols:["Path","Purpose"],rows:[
+    ["C:\\Program Files\\Thinfinity","Installation directory, all Thinfinity binaries"],
+    ["C:\\ProgramData\\Cybele Software","Runtime data, configuration and service state"],
+    ["C:\\Users\\Public\\Documents\\Cybele Software","Shared documents, logs and session artifacts"]]},
+  wu:{title:"Reference policy settings",cols:["Objective","Policy / setting","Recommended value"],rows:[
+    ["No automatic download/install","Configure Automatic Updates","Enabled, Option 2 (Notify download / Notify install)"],
+    ["Protect usage hours","Configure Active Hours","Enabled, spans full platform usage period"],
+    ["Controlled approval","WSUS / Windows Update for Business deferrals","Enabled, admin-approved, deferred"],
+    ["Prevent disruptive reboots","No auto-restart with logged on users","Enabled"],
+    ["Off-hours execution","Scheduled install day/time","Within maintenance window, outside usage hours"]]},
+  certs:{title:"Certificates and security per resource",cols:["Resource","Certificates / security","Notes"],rows:[
+    ["Load Balancer","SSL certificate","Terminates HTTPS/TLS and distributes traffic"],
+    ["Thinfinity Gateways (1..N)","SSL certificate","Encrypted inbound/outbound sessions"],
+    ["Thinfinity Brokers","SSL certificate, SAML certificate","SSL for communication; SAML for identity federation"],
+    ["Database (Profiles & Logs)","None (private network)","Access restricted via private network"],
+    ["Storage (OCI)","HTTPS","Secure file/profile storage access"],
+    ["Monitoring","SSL certificate","Encrypted telemetry and metric collection"],
+    ["OCI resources","API key","API-based authentication"],
+    ["Enterprise Application (Azure)","SAML","Single sign-on and identity federation"]]}
+};
+var AREAS=[
+ {id:"edge",num:"12.1",short:"Edge Layer",title:"Edge Layer: WAF, Firewall, Load Balancer",items:[
+  {id:"e1",t:"WAF learning mode",c:"WAF deployed first in learning mode, then progressively enforced.",sec:"3.1",k:[
+    "WAF started in observability-only (learning) mode; handshake flows validated and false positives tuned",
+    "Core rule set progressively enabled for Thinfinity endpoints once stability was confirmed",
+    "Full WAF rule set applies to all other HTTP(S) traffic; no global bypass",
+    "Identity endpoints (/saml/*, /oauth2/*) excluded from bot/CAPTCHA challenges",
+    "Origin header validated against the trusted Thinfinity portals",
+    "Handshake logging enabled: upgrade attempts, 101 successes and failures",
+    "New rules canary-tested on a subset of users; rollback to last-known-good configuration available"]},
+  {id:"e2",t:"TLS policy",c:"Only TLS 1.2 / 1.3 allowed; plain HTTP blocked; certificates valid.",sec:"3.1, 3.2",k:[
+    "Plain HTTP blocked; only TCP 443 on internet-facing listeners",
+    "TLS 1.2 and TLS 1.3 only; legacy protocols disabled",
+    "SSL/TLS certificates valid and up to date",
+    "Encryption preserved end to end: client → WAF and WAF → Thinfinity Gateway",
+    "No TLS/SSL interception on Thinfinity data paths",
+    "Firewall ingress restricted to the Thinfinity FQDNs (where FQDN objects are supported)"]},
+  {id:"e3",t:"WebSocket upgrades",c:"Connection: upgrade / Upgrade: websocket + 101 Switching Protocols permitted; encrypted frames not deep-inspected.",sec:"3.1, 3.2",k:[
+    "Connection: upgrade and Upgrade: websocket requests allowed on Thinfinity paths",
+    "101 Switching Protocols responses and related headers permitted",
+    "WebSocket routes pinned to HTTP/1.1 (unless full HTTP/2 upgrade support is validated)",
+    "No payload inspection inside encrypted WebSocket tunnels; rate and connection limits enforced instead",
+    "Deep-inspection bypass scoped to the upgrade endpoints only",
+    "IPS / application control bypassed for WebSocket tunnel endpoints; inspection kept on standard HTTP(S) pages",
+    "Firewall keeps stateful entries for long-lived connections"]},
+  {id:"e4",t:"Timeouts",c:"Idle/read timeouts 30–60 min; ~300 s for long-polling fallback.",sec:"3.1, 3.3",k:[
+    "WAF idle/read timeouts set to 30–60 minutes",
+    "About 300 s configured for long-polling fallbacks",
+    "Load balancer timeouts of at least 30–60 minutes for long-lived sessions",
+    "WebSocket connections kept alive for long-running sessions",
+    "Per-user/IP session limits and new-connection rate limits configured"]},
+  {id:"e5",t:"HTTP methods",c:"GET, POST, PUT, DELETE, OPTIONS, PROPFIND allowed.",sec:"3.2",refs:["methods","urls"],k:[
+    "All six methods allowed on the WAF",
+    "All six methods allowed on the firewall",
+    "Required Thinfinity address patterns allowed through firewall and WAF"]},
+  {id:"e6",t:"LB listener",c:"HTTPS listener on 443 with valid certificate; TLS 1.2/1.3 minimum.",sec:"3.3",k:[
+    "HTTPS listener on port 443",
+    "Valid, trusted SSL certificate for the Thinfinity domain attached to the listener",
+    "TLS 1.2 and TLS 1.3 as minimum versions",
+    "HTTP/1.1 upgrade requests and 101 Switching Protocols responses allowed (WebSocket support)"]},
+  {id:"e7",t:"LB backend",c:"Backend set to Gateway pool on 9443; Weighted Round Robin; session persistence disabled.",sec:"3.3",k:[
+    "Backend set targets the Thinfinity Gateway pool by private IP address",
+    "Backend port 9443",
+    "Traffic distribution: Weighted Round Robin",
+    "Session persistence disabled (no sticky sessions)",
+    "NAT capacity and connection limits validated for high concurrency (no port exhaustion)"]},
+  {id:"e8",t:"LB health checks",c:"/__health__/ on 9443; interval 5000 ms, timeout 3000 ms, 3 retries, expected 200.",sec:"3.3",k:[
+    "Health check path /__health__/ on port 9443",
+    "Interval 5000 ms",
+    "Timeout 3000 ms",
+    "3 retry attempts before a node is marked unhealthy",
+    "Expected response code 200",
+    "Per-node health checks cover both gateways and brokers"]}]},
+ {id:"core",num:"12.2",short:"Thinfinity Subnet",title:"Thinfinity Subnet: Gateways, Brokers, AD",items:[
+  {id:"t1",t:"Gateway ingress",c:"Gateways receive traffic only from the LB over HTTPS 9443 + 443 bindings; no public IP.",sec:"4.1, 4.6",refs:["subnet"],k:[
+    "Gateways accept external connections only from the load balancer",
+    "Gateway bindings on 9443 and 443",
+    "No public IP on any resource in the Thinfinity subnet",
+    "Connections stay encrypted end to end, including long-lived WebSocket tunnels"]},
+  {id:"t2",t:"Domain join",c:"All gateways and brokers joined to the corporate AD domain.",sec:"4.1, 4.2",k:[
+    "Every gateway joined to the corporate Active Directory domain",
+    "Every broker joined to the corporate Active Directory domain"]},
+  {id:"t3",t:"Broker registration",c:"Brokers register with gateways over HTTPS 443; not directly user-facing.",sec:"4.2",k:[
+    "Brokers register with the gateways over HTTPS (TCP 443)",
+    "Brokers are not reachable directly by users"]},
+  {id:"t4",t:"Licensing",c:"Broker licensing service reachable on 7443.",sec:"4.2, 4.5",k:[
+    "Licensing service reachable on port 7443 (HTTPS) across the environment",
+    "RDS License Server reachable from brokers on TCP 135 and dynamic RPC 49152–65535 (where RDS CALs are required)"]},
+  {id:"t5",t:"AD integration",c:"LDAP 389 / LDAPS 636 to AD; AD Cache enabled on brokers.",sec:"4.2, 3.2",k:[
+    "LDAP 389 / LDAPS 636 open from brokers to Active Directory",
+    "Kerberos 88/464, Global Catalog 3268/3269, DNS 53 and NTP 123 open from brokers to identity services",
+    "AD Cache enabled on each broker"]},
+  {id:"t6",t:"HA gateways/brokers",c:"Multiple gateways and brokers deployed and load-balanced for HA.",sec:"2, 4.1",k:[
+    "At least two gateways deployed behind the load balancer",
+    "Primary and Secondary brokers deployed",
+    "No single point of failure across gateways, brokers and the database tier"]}]},
+ {id:"vdi",num:"12.3",short:"Workload Subnets",title:"Workload Subnets: VDI",items:[
+  {id:"w1",t:"Internal only",c:"VDI/workload subnets have no public IP; access only via Gateways/LB.",sec:"5",k:[
+    "No public IP on VDI or workload subnets",
+    "All access funneled through the Thinfinity Gateways and load balancer",
+    "Brokered sessions originate only from the Thinfinity Gateways"]},
+  {id:"w2",t:"Agent path",c:"Thinfinity Agent → Gateway over HTTPS 443 (WebSocket) not inspected/delayed.",sec:"5.1, 5.2",k:[
+    "Outbound HTTPS 443 allowed from every Thinfinity Agent to the Gateways",
+    "No DPI, SSL interception or proxy buffering on this path",
+    "No inline monitoring, IPS or proxy that delays or reorders packets",
+    "Return traffic unrestricted and free of content inspection",
+    "Generous idle and session timeouts for long-lived WebSocket sessions"]},
+  {id:"w3",t:"Temporary RDP",c:"RDP 3389 exposed only during provisioning and closed immediately after.",sec:"5.1",k:[
+    "RDP 3389 opened only from the Broker's IP during initial provisioning",
+    "RDP 3389 closed immediately after deployment"]},
+  {id:"w4",t:"Segmentation",c:"Workload subnets segmented by environment/use case.",sec:"5",k:[
+    "Subnets divided by environment or use case (production, development/QA, training, support)",
+    "SMB 445 limited to session hosts ↔ profile/file storage (where profile persistence is used)"]}]},
+ {id:"ops",num:"12.4",short:"Platform Operations",title:"Database, Monitoring, Antivirus, Windows Updates, Images",items:[
+  {id:"o1",t:"External DB",c:"Every active production service uses an external (managed) database; no embedded DB in production.",sec:"6.1",k:[
+    "Primary and Secondary Brokers (and Gateways where applicable) point to an external database",
+    "The embedded database is not used by any production service",
+    "Database provisioned as a managed service (e.g. OCI MySQL Database Service), not self-hosted on a broker/gateway node"]},
+  {id:"o2",t:"DB access",c:"DB restricted to brokers over 3306/1433; private network only; no public IP.",sec:"6.1",k:[
+    "Access restricted to brokers only, on the chosen engine port (MySQL 3306 or SQL Server 1433)",
+    "Reachable only through the private network",
+    "No public IP and no broad exposure",
+    "Database service integrated into the domain"]},
+  {id:"o3",t:"Profiles HA",c:"Profiles database configured for High Availability.",sec:"6.2",k:[
+    "Profiles database configured for HA and survives a database node failure",
+    "Audit Log database capacity, retention and log rotation defined per compliance standards"]},
+  {id:"o4",t:"AV/EDR exclusions",c:"Cortex/Defender exclusions created and active for all Thinfinity binaries and the Thinfinity/Cybele folders.",sec:"8",refs:["exes","folders"],k:[
+    "Binary exclusions created for every .exe under C:\\Program Files\\Thinfinity",
+    "Folder exclusions created for the three Thinfinity / Cybele Software paths (files and subfolders)",
+    "Exclusions applied on all Gateways, Brokers and any host running Thinfinity components",
+    "Exclusions confirmed active in the security console (propagated, not only defined)",
+    "Exclusion set is reviewed whenever Thinfinity is upgraded"]},
+  {id:"o5",t:"Monitoring external",c:"Monitoring engine and storage deployed outside Gateway/Broker nodes on dedicated resources.",sec:"7.1",k:[
+    "Monitoring service runs outside the Gateway/Broker nodes on dedicated compute",
+    "Dedicated disk for monitoring and telemetry data, isolated from application storage",
+    "Collector ports 4317–4318 reachable; gateway metrics exposed over HTTPS 443",
+    "SSL certificate on the monitoring endpoint (encrypted telemetry)"]},
+  {id:"o6",t:"Monitoring non-intrusive",c:"Monitoring is out-of-band; never inline on the Agent→Gateway path.",sec:"7.1",k:[
+    "Monitoring observes out-of-band",
+    "Nothing sits inline on the Agent → Gateway WebSocket path",
+    "Monitoring does not inspect, delay or reorder session traffic"]},
+  {id:"o7",t:"Windows Update control",c:"Auto download/install disabled; active hours cover usage; patching in off-hours maintenance window.",sec:"9.1",refs:["wu"],k:[
+    "Configure Automatic Updates set to Option 2 (notify for download and notify for install)",
+    "Active Hours cover the full platform usage period",
+    "Updates approved and staged through WSUS or Windows Update for Business",
+    "Download and installation scheduled inside the maintenance window, outside usage hours",
+    "Policy applied to Gateways, Brokers and VDI/session hosts"]},
+  {id:"o8",t:"Restart control",c:"No auto-restart with logged-on users; reboots only after draining sessions.",sec:"9.1",k:[
+    "\"No auto-restart with logged on users\" enabled",
+    "Gateways/brokers placed in drain mode and sessions closed or migrated before patching",
+    "Reboots performed only inside the maintenance window",
+    "Nodes patched in waves, never all gateways or all brokers at once",
+    "Post-update checks (/__health__/, login test, profile load) before a node returns to the pool"]},
+  {id:"o9",t:"Image generalization",c:"Golden images generalized (Sysprep); unique SID/hostname/Agent ID per instance.",sec:"10.1",k:[
+    "Golden image built from a clean, fully patched OS (Windows Server 2022 for session hosts)",
+    "Thinfinity Agent installed and GPO baseline applied; image validated while still a template",
+    "Image generalized with Sysprep (/generalize /oobe)",
+    "No cached domain membership, pre-assigned hostname or leftover Agent ID in the image",
+    "First-boot specialization (cloud-init / Cloudbase-Init) assigns hostname, joins the domain and registers the Agent",
+    "No user profiles, temporary data or logs embedded in the image"]},
+  {id:"o10",t:"Model validation",c:"Models tested in non-production before promotion; exported for backup/migration.",sec:"10.1",k:[
+    "Every new or imported model tested in non-production before promotion",
+    "Validated models exported for backup, recovery and migration",
+    "Models named consistently and documented (settings, versions, validated OCID)",
+    "Images rebuilt and re-generalized regularly for OS patches and Agent updates"]}]},
+ {id:"sec",num:"12.5",short:"Security & Certificates",title:"Security & Certificates",items:[
+  {id:"s1",t:"Certificates present",c:"Valid SSL certificates on LB, gateways, brokers, storage, monitoring.",sec:"11",refs:["certs"],k:[
+    "Load Balancer: valid SSL certificate",
+    "Thinfinity Gateways (1..N): valid SSL certificate",
+    "Thinfinity Brokers: valid SSL certificate",
+    "Storage (OCI): HTTPS enforced",
+    "Monitoring: valid SSL certificate"]},
+  {id:"s2",t:"SAML / SSO",c:"SAML certificates configured on brokers and Enterprise Application (Azure) for SSO.",sec:"11",k:[
+    "SAML certificate configured on the brokers",
+    "Enterprise Application (Azure) configured with SAML for single sign-on"]},
+  {id:"s3",t:"OCI auth",c:"API key configured for OCI resource access.",sec:"11",k:[
+    "API key configured for OCI resource access"]},
+  {id:"s4",t:"Zero Trust",c:"Least-privilege L3/L4 rules and micro-segmentation enforced end-to-end.",sec:"3.2, 11",refs:["segments"],k:[
+    "Least-privilege L3/L4 allowlists in place, aligned to the front-end FQDNs",
+    "Micro-segmentation between Edge, Thinfinity subnet and workload subnets",
+    "Egress scoped to what is needed (CRL/OCSP, package repositories, NTP)"]}]}
+];
+var ALL=[];AREAS.forEach(function(a){a.items.forEach(function(it){it.area=a;ALL.push(it)})});
+var BY={};ALL.forEach(function(it){BY[it.id]=it});
+var LABEL={pass:"Pass",fail:"Fail",na:"N/A","":"Pending"};
+var LS="thinfinity-ha-validation-v1";
+
+function blankItem(){return {s:"",k:{},n:""}}
+function blankMeta(){return {client:"",env:"",date:"",ack:false,so:{p:{n:"",d:""},r:{n:"",d:""},a:{n:"",d:""}}}}
+function normItem(d){var o=blankItem();if(!d)return o;if(d.s==="pass"||d.s==="fail"||d.s==="na")o.s=d.s;if(d.k&&typeof d.k==="object"){for(var i in d.k){if(d.k[i]===true)o.k[i]=true}}if(typeof d.n==="string")o.n=d.n;return o}
+function normMeta(d){var o=blankMeta();if(!d)return o;["client","env","date"].forEach(function(f){if(typeof d[f]==="string")o[f]=d[f]});o.ack=d.ack===true;if(d.so){["p","r","a"].forEach(function(r){if(d.so[r]){if(typeof d.so[r].n==="string")o.so[r].n=d.so[r].n;if(typeof d.so[r].d==="string")o.so[r].d=d.so[r].d}})}return o}
+function isBlank(it){return !it.s&&!it.n&&Object.keys(it.k).length===0}
+function same(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+
+var state={items:{},meta:blankMeta()};
+ALL.forEach(function(it){state.items[it.id]=blankItem()});
+var unsynced={};      // path -> true: local change not yet confirmed by the shared store
+var server={items:{},meta:null};
+var db=null,mode="local",syncErr=false,W={},filter="all",lastId=null;
+
+function loadLocal(){try{var raw=localStorage.getItem(LS);if(!raw)return;var d=JSON.parse(raw);if(d.items){for(var id in d.items){if(BY[id])state.items[id]=normItem(d.items[id])}}state.meta=normMeta(d.meta);if(d.unsynced)unsynced=d.unsynced}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({items:state.items,meta:state.meta,unsynced:unsynced}))}catch(e){}}
+
+function h(tag,attrs){var e=document.createElement(tag);for(var k in attrs||{}){var v=attrs[k];if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(v===true)e.setAttribute(k,"");else if(v!==false&&v!=null)e.setAttribute(k,v)}for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null)continue;if(Array.isArray(c))c.forEach(function(x){if(x!=null)e.append(x)});else e.append(c)}return e}
+function $(id){return document.getElementById(id)}
+
+/* ---------- build ---------- */
+function refBlock(key){var r=REFS[key];var d=h("details",{class:"ref"},h("summary",{text:"Reference: "+r.title}));
+  if(r.chips){d.append(h("div",{class:"chips"},r.chips.map(function(c){return h("code",{text:c})})))}
+  else{var t=h("table",null,h("thead",null,h("tr",null,r.cols.map(function(c){return h("th",{text:c})}))),h("tbody",null,r.rows.map(function(row){return h("tr",null,row.map(function(c,i){return h("td",{class:i>0&&/[\/\\]|^\d|\d{2,}/.test(c)&&r.cols.length>2&&i===r.cols.length-2?"mono":"",text:c})}))})));d.append(h("div",{class:"scroll"},t))}
+  return d}
+function build(){
+  var nav=$("areas"),list=$("list");
+  AREAS.forEach(function(a){
+    nav.append(h("a",{class:"area-link",href:"#"+a.id,id:"lnk-"+a.id},h("span",{class:"n",text:a.num}),h("span",{class:"t",text:a.short}),h("span",{class:"c"}),h("div",{class:"bar"},h("i",{class:"pass"}),h("i",{class:"fail"}),h("i",{class:"na"}))));
+    var items=h("div",{class:"items"});
+    a.items.forEach(function(it){
+      var seg=h("div",{class:"seg",role:"group","aria-label":"Result for "+it.t},["pass","fail","na"].map(function(v){return h("button",{type:"button",id:"st-"+it.id+"-"+v,"data-item":it.id,"data-v":v,"aria-pressed":"false",text:LABEL[v]})}));
+      var checks=h("ul",{class:"checks"},it.k.map(function(txt,i){return h("li",null,h("label",{for:"ck-"+it.id+"-"+i},h("input",{type:"checkbox",id:"ck-"+it.id+"-"+i,"data-item":it.id,"data-k":String(i)}),h("span",{text:txt})))}));
+      var body=h("div",{class:"more-body"},checks,(it.refs||[]).map(refBlock),h("label",{class:"note",for:"nt-"+it.id},"Evidence and notes",h("textarea",{id:"nt-"+it.id,"data-item":it.id,placeholder:"Who confirmed it, where the evidence lives, what is still open"})));
+      var more=h("details",{class:"more",id:"more-"+it.id},h("summary",null,h("span",{text:"What to verify"}),h("span",{class:"k"}),h("span",{class:"hasnote"})),body);
+      items.append(h("article",{class:"item",id:"item-"+it.id,"data-s":""},
+        h("div",{class:"item-top"},h("div",{class:"item-txt"},h("h3",null,h("span",{text:it.t}),h("span",{class:"pill",text:"Pending"})),h("p",{class:"crit",text:it.c+" (section "+it.sec+")"})),seg),more));
+    });
+    list.append(h("section",{class:"area",id:a.id,style:"margin-bottom:26px"},h("div",{class:"area-head"},h("h2",null,h("span",{class:"num",text:a.num}),a.title),h("span",{class:"cnt",id:"cnt-"+a.id})),items));
+  });
+}
+
+/* ---------- paint ---------- */
+function paintItem(id){var it=state.items[id],el=$("item-"+id),def=BY[id];
+  el.setAttribute("data-s",it.s);el.querySelector(".pill").textContent=LABEL[it.s];
+  ["pass","fail","na"].forEach(function(v){$("st-"+id+"-"+v).setAttribute("aria-pressed",it.s===v?"true":"false")});
+  var done=0;def.k.forEach(function(_,i){var on=it.k[i]===true;if(on)done++;$("ck-"+id+"-"+i).checked=on});
+  el.querySelector("summary .k").textContent=done+" of "+def.k.length+" confirmed";
+  el.querySelector("summary .hasnote").textContent=it.n?"· has notes":"";
+  var ta=$("nt-"+id);if(document.activeElement!==ta&&ta.value!==it.n)ta.value=it.n;
+  applyFilterTo(id);}
+function count(items){var c={pass:0,fail:0,na:0,pend:0,total:items.length};items.forEach(function(d){var s=state.items[d.id].s;c[s||"pend"]++});return c}
+function setBar(bar,c){var k=bar.children;k[0].style.width=(c.pass/c.total*100)+"%";k[1].style.width=(c.fail/c.total*100)+"%";k[2].style.width=(c.na/c.total*100)+"%"}
+function paintSummary(){var c=count(ALL),done=c.total-c.pend;
+  var t=$("tally");t.textContent="";
+  t.append(h("b",{text:done+" of "+c.total+" evaluated"}),h("span",null,h("i",{class:"dot pass"}),c.pass+" pass"),h("span",null,h("i",{class:"dot fail"}),c.fail+" fail"),h("span",null,h("i",{class:"dot na"}),c.na+" N/A"),h("span",null,h("i",{class:"dot pend"}),c.pend+" pending"));
+  setBar($("bar"),c);
+  AREAS.forEach(function(a){var ac=count(a.items),ad=ac.total-ac.pend;$("cnt-"+a.id).textContent=ad+" of "+ac.total+" evaluated"+(ac.fail?" · "+ac.fail+" fail":"");var l=$("lnk-"+a.id);l.querySelector(".c").textContent=ad+" / "+ac.total+(ac.fail?" · "+ac.fail+" fail":"");setBar(l.querySelector(".bar"),ac)});
+  var v=$("verdict");
+  if(c.fail>0){v.setAttribute("data-v","open");v.textContent=c.fail+" failed item"+(c.fail>1?"s":"")+" to resolve before sign-off"}
+  else if(c.pend===0){v.setAttribute("data-v","ready");v.textContent="All "+c.total+" items evaluated, none failed: ready for sign-off"}
+  else{v.setAttribute("data-v","prog");v.textContent=c.pend+" item"+(c.pend>1?"s":"")+" still to evaluate"}
+  $("next").disabled=c.pend===0;$("next").textContent=c.pend===0?"Nothing pending":"Next pending item";}
+function paintMeta(){document.querySelectorAll("[data-meta]").forEach(function(el){var f=el.getAttribute("data-meta");if(el.type==="checkbox")el.checked=state.meta[f]===true;else if(document.activeElement!==el&&el.value!==state.meta[f])el.value=state.meta[f]});
+  document.querySelectorAll("[data-so]").forEach(function(el){var p=el.getAttribute("data-so").split(".");var v=state.meta.so[p[0]][p[1]];if(document.activeElement!==el&&el.value!==v)el.value=v})}
+function paintAll(){ALL.forEach(function(d){paintItem(d.id)});paintSummary();paintMeta();applyFilter()}
+function matches(id){var s=state.items[id].s;return filter==="all"||(filter==="pend"&&!s)||(filter==="fail"&&s==="fail")}
+function applyFilterTo(id){$("item-"+id).hidden=!matches(id)}
+function applyFilter(){var any=false;AREAS.forEach(function(a){var vis=0;a.items.forEach(function(d){var m=matches(d.id);$("item-"+d.id).hidden=!m;if(m)vis++});$(a.id).hidden=vis===0;if(vis)any=true});$("empty").hidden=any}
+function setSync(){var el=$("sync"),busy=Object.keys(W).some(function(p){return W[p].busy});
+  if(mode==="readonly"){el.setAttribute("data-s","idle");el.textContent="View only"}
+  else if(mode==="local"){el.setAttribute("data-s","idle");el.textContent="Saved on this device only"}
+  else if(syncErr){el.setAttribute("data-s","warn");el.textContent="Not synced: kept on this device"}
+  else if(mode==="connecting"){el.setAttribute("data-s","busy");el.textContent="Connecting"}
+  else if(mode==="slow"){el.setAttribute("data-s","warn");el.textContent="Shared storage unreachable: kept on this device"}
+  else if(busy){el.setAttribute("data-s","busy");el.textContent="Saving"}
+  else{el.setAttribute("data-s","ok");el.textContent="Saved and shared"}}
+
+/* ---------- persistence ---------- */
+function bodyFor(path){if(path==="meta/session")return JSON.parse(JSON.stringify(state.meta));var it=state.items[path.slice(6)];if(isBlank(it))return null;return {s:it.s,k:it.k,n:it.n,at:Date.now()}}
+function changed(path){unsynced[path]=true;saveLocal();push(path)}
+function push(path){if(!db||mode==="readonly")return;var w=W[path]||(W[path]={busy:false,again:false,retried:false});
+  if(w.busy){w.again=true;return}
+  w.busy=true;setSync();var body=bodyFor(path),ref=db.doc(path);
+  (body?ref.set(body):ref.delete()).then(function(){w.busy=false;w.retried=false;syncErr=false;
+    if(w.again){w.again=false;push(path)}else{delete unsynced[path];saveLocal()}setSync()},
+  function(e){w.busy=false;var code=e&&e.code;
+    if(code==="invalid_argument"||code==="not_granted"||code==="revoked"){goReadOnly()}
+    else if(code==="unavailable"&&!w.retried){w.retried=true;setTimeout(function(){push(path)},1200+Math.random()*1500)}
+    else{w.retried=false;syncErr=true}
+    setSync()})}
+function goReadOnly(){mode="readonly";unsynced={};ALL.forEach(function(d){state.items[d.id]=normItem(server.items[d.id])});state.meta=normMeta(server.meta);saveLocal();
+  document.querySelectorAll("header input, main input, main textarea, .seg button, #reset").forEach(function(el){el.disabled=true});paintAll()}
+function onItems(snap){var map={};snap.docs.forEach(function(d){if(d.exists)map[d.id]=d.data()});server.items=map;var touched=false;
+  ALL.forEach(function(d){var p="items/"+d.id;if(unsynced[p]||(W[p]&&W[p].busy))return;var n=normItem(map[d.id]);if(!same(n,state.items[d.id])){state.items[d.id]=n;paintItem(d.id);touched=true}});
+  if(touched){paintSummary();applyFilter();saveLocal()}
+  if(!snap.metadata.fromCache)live()}
+function onMeta(snap){server.meta=snap.exists?snap.data():null;var p="meta/session";
+  if(!unsynced[p]&&!(W[p]&&W[p].busy)){var n=normMeta(server.meta);if(!same(n,state.meta)){state.meta=n;paintMeta();saveLocal()}}}
+var slowTimer=null,wentLive=false;
+function live(){if(slowTimer){clearTimeout(slowTimer);slowTimer=null}if(mode==="connecting"||mode==="slow")mode="shared";
+  if(!wentLive){wentLive=true;Object.keys(unsynced).forEach(push)}setSync()}
+function subErr(e){if(slowTimer){clearTimeout(slowTimer);slowTimer=null}if(mode!=="readonly"){mode="local";db=null}setSync()}
+function connect(){var use=window.claude&&window.claude.use;if(!use){setSync();return}
+  mode="connecting";setSync();
+  Promise.resolve(use.call(window.claude,"db")).then(function(d){if(!d){mode="local";setSync();return}
+    db=d;slowTimer=setTimeout(function(){if(mode==="connecting"){mode="slow";setSync()}},10000);
+    try{db.collection("items").onSnapshot(onItems,subErr);db.doc("meta/session").onSnapshot(onMeta,function(){})}catch(e){subErr(e)}
+  },function(){mode="local";setSync()})}
+
+/* ---------- interaction ---------- */
+var noteTimers={};
+function flushNote(id){if(noteTimers[id]){clearTimeout(noteTimers[id]);delete noteTimers[id]}var ta=$("nt-"+id);if(state.items[id].n!==ta.value){state.items[id].n=ta.value;paintItem(id);changed("items/"+id)}}
+var metaTimer=null;
+function metaChanged(now){if(metaTimer)clearTimeout(metaTimer);if(now){changed("meta/session")}else{metaTimer=setTimeout(function(){metaTimer=null;changed("meta/session")},600)}}
+function readMeta(el){if(el.hasAttribute("data-meta")){var f=el.getAttribute("data-meta");state.meta[f]=el.type==="checkbox"?el.checked:el.value}else{var p=el.getAttribute("data-so").split(".");state.meta.so[p[0]][p[1]]=el.value}}
+function wire(){
+  $("list").addEventListener("click",function(ev){var b=ev.target.closest(".seg button");if(!b||mode==="readonly")return;var id=b.getAttribute("data-item"),v=b.getAttribute("data-v"),it=state.items[id];
+    it.s=it.s===v?"":v;lastId=id;if(it.s==="fail")$("more-"+id).open=true;paintItem(id);paintSummary();changed("items/"+id);
+    if(filter!=="all")applyFilter()});
+  $("list").addEventListener("change",function(ev){var el=ev.target;if(el.matches("input[data-k]")){var id=el.getAttribute("data-item"),i=el.getAttribute("data-k");if(el.checked)state.items[id].k[i]=true;else delete state.items[id].k[i];lastId=id;paintItem(id);changed("items/"+id)}});
+  $("list").addEventListener("input",function(ev){var el=ev.target;if(el.matches("textarea[data-item]")){var id=el.getAttribute("data-item");clearTimeout(noteTimers[id]);noteTimers[id]=setTimeout(function(){flushNote(id)},700)}});
+  $("list").addEventListener("focusout",function(ev){var el=ev.target;if(el.matches&&el.matches("textarea[data-item]"))flushNote(el.getAttribute("data-item"))});
+  document.querySelectorAll("[data-meta],[data-so]").forEach(function(el){
+    el.addEventListener("input",function(){readMeta(el);metaChanged(el.type==="checkbox"||el.type==="date")});
+    el.addEventListener("blur",function(){if(metaTimer){readMeta(el);metaChanged(true)}})});
+  document.querySelectorAll(".filters button").forEach(function(b){b.addEventListener("click",function(){filter=b.getAttribute("data-f");document.querySelectorAll(".filters button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});applyFilter()})});
+  $("next").addEventListener("click",function(){var start=lastId?ALL.indexOf(BY[lastId])+1:0,pick=null;
+    for(var i=0;i<ALL.length;i++){var d=ALL[(start+i)%ALL.length];if(!state.items[d.id].s){pick=d;break}}
+    if(!pick)return;if(filter==="fail"){document.querySelector('.filters button[data-f="all"]').click()}
+    lastId=pick.id;var el=$("item-"+pick.id);$("more-"+pick.id).open=true;
+    var calm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({behavior:calm?"auto":"smooth",block:"start"});el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash")});
+  $("copy").addEventListener("click",function(){var txt=summaryText(),out=$("copyout"),ok=$("copied");
+    function fallback(){out.value=txt;out.hidden=false;out.focus();out.select()}
+    try{navigator.clipboard.writeText(txt).then(function(){ok.hidden=false;setTimeout(function(){ok.hidden=true},2500)},fallback)}catch(e){fallback()}});
+  var r=$("reset"),ry=$("reset-yes"),rn=$("reset-no");
+  function resetUi(open){r.hidden=open;ry.hidden=!open;rn.hidden=!open}
+  r.addEventListener("click",function(){resetUi(true)});rn.addEventListener("click",function(){resetUi(false)});
+  ry.addEventListener("click",function(){resetUi(false);ALL.forEach(function(d){if(!isBlank(state.items[d.id])){state.items[d.id]=blankItem();unsynced["items/"+d.id]=true;push("items/"+d.id)}$("nt-"+d.id).value="";$("more-"+d.id).open=false});
+    state.meta=blankMeta();document.querySelectorAll("[data-meta],[data-so]").forEach(function(el){if(el.type!=="checkbox")el.value=""});lastId=null;changed("meta/session");paintAll()});
+}
+function summaryText(){var c=count(ALL),m=state.meta,L=[];
+  L.push("Thinfinity Workspace 8.5 - HA Production Validation");
+  L.push("Client: "+(m.client||"-")+" | Environment: "+(m.env||"-")+" | Review date: "+(m.date||"-"));
+  L.push("Scope of responsibility (1.1) acknowledged by Client: "+(m.ack?"Yes":"No"));
+  L.push("Result: "+(c.total-c.pend)+" of "+c.total+" evaluated - "+c.pass+" pass, "+c.fail+" fail, "+c.na+" N/A, "+c.pend+" pending");
+  [["fail","FAILED"],["","PENDING"],["na","NOT APPLICABLE"],["pass","PASSED"]].forEach(function(g){var rows=ALL.filter(function(d){return state.items[d.id].s===g[0]});if(!rows.length)return;L.push("");L.push(g[1]+" ("+rows.length+")");
+    rows.forEach(function(d){var it=state.items[d.id],done=Object.keys(it.k).length;L.push("- ["+d.area.num+"] "+d.t+" ("+done+"/"+d.k.length+" checks confirmed)"+(it.n?"\n    Notes: "+it.n.replace(/\n/g,"\n    "):""));
+      if(g[0]==="fail"||g[0]===""){d.k.forEach(function(txt,i){if(g[0]==="fail"&&!it.k[i])L.push("    open: "+txt)})}})});
+  var so=m.so;L.push("");L.push("Sign-off");L.push("- Prepared by (Cybele): "+(so.p.n||"-")+" "+(so.p.d||""));L.push("- Reviewed by: "+(so.r.n||"-")+" "+(so.r.d||""));L.push("- Approved by (Client): "+(so.a.n||"-")+" "+(so.a.d||""));
+  return L.join("\n")}
+
+loadLocal();build();wire();paintAll();setSync();connect();
+})();
+</script>
+
+</body></html>
